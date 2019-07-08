@@ -1,110 +1,176 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="width=device-width" />
 
-    <style>
-      body { font-family: Tahoma, Geneva, sans-serif; text-align: center; }
-    </style>
+<head>
+  <meta name="viewport" content="width=device-width" />
 
-    <!-- colyseus.js client -->
-    <script type="text/javascript" src="https://raw.githack.com/colyseus/colyseus.js/master/dist/colyseus.js"></script>
+  <style>
+    body {
+      font-family: Tahoma, Geneva, sans-serif;
+      text-align: center;
+    }
+  </style>
 
-    <style type="text/css">
-      .player {
-        width: 100px;
-        height: 100px;
-        position: absolute;
-        padding-top: 24px;
-        box-sizing: border-box;
-        left: 0;
-        top: 0;
-      }
-    </style>
+  <!-- colyseus.js client -->
+  <script type="text/javascript" src="https://raw.githack.com/colyseus/colyseus.js/master/dist/colyseus.js"></script>
 
-  </head>
-  <body>
-    <h1>
-      <a href="https://github.com/gamestdio/colyseus-examples"><img src="https://cdn.jsdelivr.net/gh/gamestdio/colyseus@master/media/header.png" height="100" alt="colyseus" /></a>
-    </h1>
+  <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+  <script src="https://preview.babylonjs.com/ammo.js"></script>
+  <script src="https://preview.babylonjs.com/cannon.js"></script>
+  <script src="https://preview.babylonjs.com/Oimo.js"></script>
+  <script src="https://preview.babylonjs.com/gltf_validator.js"></script>
+  <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+  <script src="https://preview.babylonjs.com/babylon.js"></script>
+  <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+  <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+  <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+  <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+  <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+  <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+  <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
 
-    <p>This example shows how to use custom data structures in your room's state.</p>
+  <style type="text/css">
+    .player {
+      width: 100px;
+      height: 100px;
+      position: absolute;
+      padding-top: 24px;
+      box-sizing: border-box;
+      left: 0;
+      top: 0;
+    }
+  </style>
 
-    <strong>commands</strong><br>
+</head>
 
-    <button onclick="up()">up</button>
-    <button onclick="down()">down</button>
-    <br />
-    <button onclick="left()">left</button>
-    <button onclick="right()">right</button>
+<body>
+  <canvas id="renderCanvas"></canvas>
 
-    <script>
-      var host = window.document.location.host.replace(/:.*/, '');
+  <script>
+    var host = window.document.location.host.replace(/:.*/, '');
 
-      var client = new Colyseus.Client(location.protocol.replace("http", "ws") + host + (location.port ? ':' + location.port : ''));
-      var room = client.join("state_handler");
+    var client = new Colyseus.Client(location.protocol.replace("http", "ws") + host + (location.port ? ':' + location.port : ''));
+    var room = client.join("state_handler");
 
-      var players = {};
-      var colors = ['red', 'green', 'yellow', 'blue', 'cyan', 'magenta'];
+    var players = {};
+    var colors = ['red', 'green', 'yellow', 'blue', 'cyan', 'magenta'];
 
-      room.onJoin.add(function() {
+    var canvas = document.getElementById("renderCanvas");
+
+    var createScene = function () {
+
+      // This creates a basic Babylon Scene object (non-mesh)
+      var scene = new BABYLON.Scene(engine);
+
+      // This creates and positions a free camera (non-mesh)
+      var camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 80, -10), scene);
+
+      // This targets the camera to scene origin
+      camera.setTarget(BABYLON.Vector3.Zero());
+
+      // This attaches the camera to the canvas
+      camera.attachControl(canvas, true);
+
+      // This creates a light, aiming 0,1,0 - to the sky (non-mesh)
+      var light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+
+      // Default intensity is 1. Let's dim the light a small amount
+      light.intensity = 0.7;
+
+      // Our built-in 'ground' shape.
+      var ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
+
+      room.onJoin.add(function () {
         // listen to patches coming from the server
-        room.state.players.onAdd = function(player, sessionId) {
-          var dom = document.createElement("div");
-          dom.className = "player";
-          dom.style.left = player.x + "px";
-          dom.style.top = player.y + "px";
-          dom.style.background = colors[Math.floor(Math.random() * colors.length)];
-          dom.innerHTML = "Player " + sessionId;
+        room.state.players.onAdd = function (player, sessionId) {
+          // Our built-in 'sphere' shape.
+          sphere = BABYLON.MeshBuilder.CreateSphere("sphere", { diameter: 2, segments: 32 }, scene);
 
-          players[sessionId] = dom;
-          document.body.appendChild(dom);
+          // Move the sphere upward 1/2 its height
+          sphere.position.z = player.y;
+          sphere.position.x = player.x;
+
+          players[sessionId] = sphere;
+
+          //var dom = document.createElement("div");
+          //dom.className = "player";
+          //dom.style.left = player.x + "px";
+          //dom.style.top = player.y + "px";
+          //dom.style.background = colors[Math.floor(Math.random() * colors.length)];
+          //dom.innerHTML = "Player " + sessionId;
+
+          //players[sessionId] = dom;
+          //document.body.appendChild(dom);
         }
 
-        room.state.players.onRemove = function(player, sessionId) {
-          document.body.removeChild(players[sessionId]);
-          delete players[sessionId];
+        room.state.players.onRemove = function (player, sessionId) {
+          //document.body.removeChild(players[sessionId]);
+          //delete players[sessionId];
         }
 
         room.state.players.onChange = function (player, sessionId) {
-          var dom = players[sessionId];
-          dom.style.left = player.x + "px";
-          dom.style.top = player.y + "px";
+          //var dom = players[sessionId];
+          //dom.style.left = player.x + "px";
+          //dom.style.top = player.y + "px";
+          players[sessionId].position.x = player.x;
+          players[sessionId].position.z = player.y;
         }
       });
 
-      window.addEventListener("keydown", function (e) {
-        console.log(e.which);
-        if (e.which === 38) {
-          up();
+      var map = {}; //object for multiple key presses
+      scene.actionManager = new BABYLON.ActionManager(scene);
 
-        } else if (e.which === 39) {
-          right();
+      scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, function (evt) {
+        map[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+      }));
 
-        } else if (e.which === 40) {
-          down();
+      scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, function (evt) {
+        map[evt.sourceEvent.key] = evt.sourceEvent.type == "keydown";
+      }));
 
-        } else if (e.which === 37) {
-          left();
-        }
+
+      /****************************Move Sphere******************************************************/
+
+      scene.registerAfterRender(function () {
+
+        if ((map["w"] || map["W"])) {
+          room.send({ y: -1 });
+        };
+
+        if ((map["s"] || map["S"])) {
+          room.send({ y: +1 });
+        };
+
+        if ((map["a"] || map["A"])) {
+          room.send({ x: -1 });
+        };
+
+        if ((map["d"] || map["D"])) {
+          room.send({ x: +1 });
+        };
+
       });
 
-      function up () {
-        room.send({ y: -1 });
-      }
+      return scene;
 
-      function right () {
-        room.send({ x: 1 });
-      }
+    };
 
-      function down () {
-        room.send({ y: 1 })
-      }
+    var engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    var scene = createScene();
 
-      function left () {
-        room.send({ x: -1 })
+    engine.runRenderLoop(function () {
+      if (scene) {
+        scene.render();
       }
+    });
 
-    </script>
-  </body>
+    // Resize
+    window.addEventListener("resize", function () {
+      engine.resize();
+    });
+
+  </script>
+</body>
+
 </html>
